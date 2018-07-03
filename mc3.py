@@ -427,9 +427,7 @@ while len(stairs)>0:
 
         # target:
         targSz = thisStair.extraInfo['targSz']
-        targSf = thisStair.extraInfo['targSf']
         targYoff = thisStair.extraInfo['targYoff']
-        targBv = thisStair.extraInfo['targBv']
 
         # random target location:
         targXoff1 = thisStair.extraInfo['targXoff1']
@@ -451,10 +449,8 @@ while len(stairs)>0:
         targTend = targTpeak+(targTtot/2)
         trialT = thisStair.extraInfo['trialT'] # -win.monitorFramePeriod*0.75
         
-        print 'TRIAL' + '\t' + 'CONTRAST' + '\t\t' + 'mcBv' + '\t' + 'targT' + \
-              '\t' + 'targOri' + '\t' + 'targDir' + '\t' + 'targXoff'
-        print trialNstr + '\t' + contrStr + '\t' + str(mcBv) + '\t' + str(targTpeak) + \
-              '\t' + str(thisTargOri) + '\t' + str(targDir) + '\t' + str(thisTargXoff)
+        print 'TRIAL' + '\t' + 'CONTRAST' + '\t\t' + 'mcBv'
+        print trialNstr + '\t' + contrStr + '\t' + str(mcBv)
 
         # view setup: fade, gap, and fixation cross
         fixCross = thisStair.extraInfo['fixCross']
@@ -541,14 +537,14 @@ while len(stairs)>0:
                     mcMask = visual.GratingStim(win, tex=grtFast[:,:,frameN%nFrames],
                                                 size=(grtSize,grtSize), pos=maskPos,
                                                 interpolate=False, mask=mcPeriMask)
-                    mcTarg = visual.GratingStim(win, tex=grtTarg[:,:,thisMaskFrame],
+                    mcTarg = visual.GratingStim(win, tex=grtStat[:,:,thisMaskFrame],
                                                 size=(targSz,targSz), pos=targPos,
                                                 interpolate=False, mask=mcPeriTarg)
                 else:
-                    mcMask = visual.GratingStim(win, tex=grtFast[:,:,thisMaskFrame],
+                    mcMask = visual.GratingStim(win, tex=grtStat[:,:,thisMaskFrame],
                         size=(grtSize,grtSize), pos=maskPos, interpolate=False,
                                                 mask=mcPeriMask)
-                    mcTarg = visual.GratingStim(win, tex=grtTarg[:,:,frameN%nFrames],
+                    mcTarg = visual.GratingStim(win, tex=grtFast[:,:,frameN%nFrames],
                                                 size=(targSz,targSz), pos=targPos,
                                                 interpolate=False, mask=mcPeriTarg)
                 mcMask.draw()
@@ -618,7 +614,6 @@ while len(stairs)>0:
                     fdbTextR.text = fdbStrQn
                     thisStair.addResponse(corrResp)
                     thisStair.addOtherData('rt',rt)
-                    thisStair.addOtherData('targOri',thisTargOri)
                     thisStair.addOtherData('targXoff',thisTargXoff)
                     stairs.append(thisStair)
                     #print 'spacebar pressed'
