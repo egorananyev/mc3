@@ -126,10 +126,7 @@ filePath = dataDir + os.sep + fileName
 print filePath
 
 # Condition-related variables
-if expPara == '':
-    conditionsFilePath = 'cond-files'+os.sep+'cond-'+expName+'.csv'
-else:
-    conditionsFilePath = 'cond-files'+os.sep+'cond-'+expName+'_'+expPara+'.csv'
+conditionsFilePath = 'cond-files'+os.sep+'cond-'+expName+'_'+expPara+'.csv'
 print conditionsFilePath
 os.chdir(_thisDir)
 
