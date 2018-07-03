@@ -37,7 +37,7 @@ ISIduration = .25
 fixSz = .15
 # MCs:
 precompileMode = 1 # get the precompiled MCs
-grtSize = 256 # size of 256 is 71mm, or 7.2dova
+fieldSz = 256 # size of 256 is 71mm, or 7.2dova
 #contrSteps = [1.3,1.3,.9,.9,.6,.6,.4,.4,.3,.3] #10
 #contrSteps = [.2,.2,.1,.1,.05,.05,.02,.02,.01,.01,.005,.005] #10
 contrSteps = [.5,.5,.3,.3,.2,.2,.15,.15,.12,.12,.1,.1]
@@ -74,7 +74,7 @@ def dg2px(dg,cm2px=cm2px,dg2cm=dg2cm):
 # ====================================================================================
 # Converting win dimensions to pixels
 #winSz = dg2px(winSz)
-winSz = grtSize + 2
+winSz = fieldSz + 2
 winOffX = dg2px(winOffX)
 winOffY = dg2px(winOffY)
 fixSz = dg2px(fixSz)
@@ -105,7 +105,7 @@ else: # if domTest==False, fixed targEye:
     targEyeR = 2-(2**domEyeR)
 
 # Setup the Window
-win = visual.Window(size=dr, fullscr=False, screen=1, allowGUI=False, 
+win = visual.Window(size=dr, fullscr=False, screen=0, allowGUI=False, 
       allowStencil=False, color='grey', blendMode='avg', useFBO=True, units='pix')
 # store frame rate of monitor if we can measure it successfully:
 frameRate=win.getActualFrameRate()
@@ -292,8 +292,8 @@ def sigmoidMod(x):
     return 1 / (1 + np.exp(-x*10+5))
 
 
-x = np.arange(-grtSize/2,grtSize/2)
-y = np.arange(-grtSize/2,grtSize/2)
+x = np.arange(-fieldSz/2,fieldSz/2)
+y = np.arange(-fieldSz/2,fieldSz/2)
 x, y = np.meshgrid(x, y)
 R = np.sqrt((x+.5)**2 + (y+.5)**2) # adding .5 ensures symmetry
 
@@ -474,7 +474,14 @@ while len(stairs)>0:
 
         # creating a mask, which is fixed for a given trial:
         mcPeriMask = periMask(periGap, periFade)
-        mcPeriTarg = periMask(grtSize-targSz, periFade/2)
+
+        # calculating the radius of the target:
+        x = np.arange(-targSz/2,targSz/2)
+        y = np.arange(-targSz/2,targSz/2)
+        x, y = np.meshgrid(x, y)
+        R_targ = np.sqrt((x+.5)**2 + (y+.5)**2) # adding .5 ensures symmetry
+
+        mcPeriTarg = periMask(targSz, periFade*2, R)
 
         #------prepare to start routine "trial"-------
         t = 0
@@ -535,17 +542,17 @@ while len(stairs)>0:
                 # mcMask:
                 if mcBv > 0.01:
                     mcMask = visual.GratingStim(win, tex=grtFast[:,:,frameN%nFrames],
-                                                size=(grtSize,grtSize), pos=maskPos,
+                                                size=(fieldSz,fieldSz), pos=maskPos,
                                                 interpolate=False, mask=mcPeriMask)
                     mcTarg = visual.GratingStim(win, tex=grtStat[:,:,thisMaskFrame],
-                                                size=(targSz,targSz), pos=targPos,
+                                                size=(fieldSz,fieldSz), pos=targPos,
                                                 interpolate=False, mask=mcPeriTarg)
                 else:
                     mcMask = visual.GratingStim(win, tex=grtStat[:,:,thisMaskFrame],
-                        size=(grtSize,grtSize), pos=maskPos, interpolate=False,
+                        size=(fieldSz,fieldSz), pos=maskPos, interpolate=False,
                                                 mask=mcPeriMask)
                     mcTarg = visual.GratingStim(win, tex=grtFast[:,:,frameN%nFrames],
-                                                size=(targSz,targSz), pos=targPos,
+                                                size=(fieldSz,fieldSz), pos=targPos,
                                                 interpolate=False, mask=mcPeriTarg)
                 mcMask.draw()
                 # drawing the fixation cross, if any:
