@@ -105,7 +105,7 @@ else: # if domTest==False, fixed targEye:
     targEyeR = 2-(2**domEyeR)
 
 # Setup the Window
-win = visual.Window(size=dr, fullscr=False, screen=0, allowGUI=False, 
+win = visual.Window(size=dr, fullscr=False, screen=1, allowGUI=False, 
       allowStencil=False, color='grey', blendMode='avg', useFBO=True, units='pix')
 # store frame rate of monitor if we can measure it successfully:
 frameRate=win.getActualFrameRate()
@@ -120,13 +120,20 @@ else:
 if precompileMode:
     precompiledDir = '..' + os.sep + 'precompiledMCs'
 dataDir = '..' + os.sep + 'data_mc3'
-fileName = '%s_%s_p%s_s%s_%s' %(expName, expPara, expInfo['participant'], expInfo['session'],
-    expInfo['time'])
+if expPara == '':
+    fileName = '%s_p%s_s%s_%s' %(expName, expInfo['participant'], expInfo['session'],
+        expInfo['time'])
+else:
+    fileName = '%s_%s_p%s_s%s_%s' %(expName, expPara, expInfo['participant'], expInfo['session'],
+        expInfo['time'])
 filePath = dataDir + os.sep + fileName
 print filePath
 
 # Condition-related variables
-conditionsFilePath = 'cond-files'+os.sep+'cond-'+expName+'_'+expPara+'.csv'
+if expPara == '':
+    conditionsFilePath = 'cond-files'+os.sep+'cond-'+expName+'.csv'
+else:
+    conditionsFilePath = 'cond-files'+os.sep+'cond-'+expName+'_'+expPara+'.csv'
 print conditionsFilePath
 os.chdir(_thisDir)
 
@@ -216,7 +223,8 @@ for thisCond in condList:
     thisInfo = copy.copy(thisCond)
     stairLabel = 'st' + str(thisCond['startContr']) + \
                  '_mcBv' + str(thisCond['mcBv']) + \
-                 '_targTpeak' + str(thisCond['targTpeak'])
+                 '_targTpeak' + str(thisCond['targTpeak']) + \
+                 '_ecc' + str(thisCond['targXoff2'])
     if domTest: stairLabel += '_targEyeR' + str(thisCond['targEyeR'])
     thisInfo['label'] = stairLabel
     thisStair = data.StairHandler(startVal = thisInfo['startContr'],
