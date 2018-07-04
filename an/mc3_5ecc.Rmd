@@ -131,7 +131,7 @@ if(out || render){
 allDataDir <- paste(db,'Projects/mc/data_mc3',sep='')
 dataDirs <- dir(allDataDir)
 dataDirs <- dataDirs[grep('mc3',dataDirs)]
-colsOfInt <- c('participant', 'dom', 'session', 'mcBv', 'targTpeak', 'targXoff2', 
+colsOfInt <- c('participant', 'dom', 'session', 'mcBv', 'targTpeak', 'targXoff2', 'mcPeriGap', 
                'stairStart', 'meanRev6')
 df <- data.frame()
 dfRevs <- data.frame()
@@ -151,7 +151,8 @@ for(curDir in dataDirs){
             curInfoCols <- data.frame(subj=curDf$participant[1], dom=curDf$dom[1], 
                                       sess=curDf$session[1],
                                       stairStart=curInfo[which(curInfo==" u'startContr':")+1], 
-                                      mcBv=curInfo[which(curInfo==" u'mcBv':")+1], 
+                                      maskV=curInfo[which(curInfo==" u'mcBv':")+1], 
+                                      maskSz=curInfo[which(curInfo==" u'mcPeriGap':")+1], 
                                       targTpeak=curInfo[which(curInfo==" u'targTpeak':")+1], 
                                       targEcc=curInfo[which(curInfo==" u'targXoff2':")+1])
             curDfRevs <- cbind(curInfoCols, curRevs[,2:9])
@@ -168,18 +169,19 @@ for(curDir in dataDirs){
     df <- rbind(df, curDf)
 }
 if(qc){
-    dfIntn$maskV <- round(as.numeric(levels(dfIntn$mcBv))[dfIntn$mcBv] * 60 / 35, 1)
+    dfIntn$maskV <- round(as.numeric(levels(dfIntn$maskV))[dfIntn$maskV] * 60 / 35, 1)
     dfIntn$maskV[dfIntn$maskV<0.05] <- 0
     head(dfIntn)
 }
 ds <- rename(df, c(participant='subj', session='sess', meanRev6='thresh',
-                   mcBv='maskV', targXoff2='targEcc'))
+                   mcBv='maskV', targXoff2='targEcc', mcPeriGap='maskSz'))
 ds$targEcc <- round(ds$targEcc / 35,1)
 ds$maskType <- ''
 ds$maskType[ds$maskV==0.01] <- 'stationary'
 ds$maskType[ds$maskV==9.6] <- 'fast'
 ds$maskV <- round(ds$maskV * 60 / 35, 1)
 ds$maskV[ds$maskV<0.05] <- 0
+ds$maskSz <- round((ds$maskSz + 12)*2 / 35, 1)
 head(ds)
 ```
 
@@ -187,20 +189,20 @@ head(ds)
 
 Collapsing across low and high stair starts to derive the averages for each condition.
 ```{r}
-thresh <- ddply(ds, .(subj,dom,sess,maskV,maskType,targTpeak,targEcc), summarise, 
+thresh <- ddply(ds, .(subj,dom,sess,maskV,maskType,maskSz,targTpeak,targEcc), summarise, 
                 threshMean = mean(thresh))
 head(thresh)
 ```
 
 # QC
-For quality control, it's best not to include the description of the conditions in the plots, as the convergence of the staircases should be the main focus.
+For quality control, it's not necessary to include the description of the conditions in the plots, as the convergence of the staircases should be the main focus.
 ```{r, fig.height=10, fig.width=10}
 if(qc){
     plotQc <- function(pss){
         plot(ggplot(pss, aes(x=trial, y=intn, colour=targEcc, linetype=stairStart)) +
             facet_wrap(subj ~ targTpeak, ncol=6) + geom_point() + geom_line() + ylim(-2,0))
     }
-    a <- dlply(dfIntn, .(maskV), plotQc) 
+    a <- dlply(dfIntn, .(maskV, maskSz), plotQc) 
 }
 ```
 
@@ -210,126 +212,30 @@ if(render){
     plotIndivFn <- function(pss){
         ss <- sumFn(pss)
         plotSs <- ss[ss$subj!='average',]
-        plot(plotIndiv(plotSs) + ggtitle(paste('maskV: ', unique(pss$maskType))))
+        plot(plotIndiv(plotSs) + ggtitle(paste('maskV: ', unique(pss$maskType),
+                                               'maskSz: ', unique(pss$maskSz))))
     }
-    a <- dlply(thresh, .(maskType), plotIndivFn)
+    a <- dlply(thresh, .(maskType, maskSz), plotIndivFn)
 }
 ```
 
 # Group plots
 ```{r, fig.height=7.2, fig.width=7}
 if(render || out){
-    groupPlot <- function(pss, maskVstr){
-        ss <- sumFn(pss[(pss$maskType==maskVstr),])
+    groupPlot <- function(pss, maskVstr, maskSzVal){
+        ss <- sumFn(pss[(pss$maskType==maskVstr & pss$maskSz==maskSzVal),])
         themefy(plotAve(ss[ss$subj=='average',]))
     }
-    p <- grid.arrange(groupPlot(thresh,'stationary') + ggtitle('stationary mask'), 
-                      groupPlot(thresh,'fast') + ggtitle('fast mask'),
-                      ncol=2, nrow=1) #widths=c((1-w)/2,w/2))
+    p <- grid.arrange(groupPlot(thresh,'stationary',5.5) + ggtitle('stationary small mask'), 
+                      groupPlot(thresh,'stationary',7.3) + ggtitle('stationary large mask'), 
+                      groupPlot(thresh,'fast',5.5) + ggtitle('fast small mask'),
+                      groupPlot(thresh,'fast',7.3) + ggtitle('fast large mask'),
+                      ncol=2, nrow=2) #widths=c((1-w)/2,w/2))
     # if(render){plot(p)}
     if(out){
         jpeg('mc3.jpg', width=7, height=6.3, units='in', res=600)
         plot(p)
-        def.off()
+        dev.off()
         }
 }
-```
-
-# Analyses
-
-## Scaling function
-```{r}
-cent <- function(v){
-    v <- apply(v,2,function(x){
-        x <- x - mean(unique(x),na.rm=T)
-        x <- x / max(x)
-    })
-}
-```
-
-### Centered data set
-```{r}
-dsc <- ds
-centCols <- c('dom','targTpeak','stairStart','targEcc','maskV','sess')
-dsc[,centCols] <- cent(dsc[,centCols])
-# dsc$maskV_b <- (dsc$maskV + 1) / 2
-# dsc$targV_b <- (dsc$targV + 1) / 2
-dsc$targEcc_b <- round((dsc$targEcc + 1) / 2,0)
-dsc$targTpeak_b <- (dsc$targTpeak + 1) / 2
-dsc$targTpeak_c <-  dsc$targTpeak_b * 2 - 1
-dsc$targEcc_c <-  dsc$targEcc_b * 2 - 1
-dsc$maskType <- factor(dsc$maskType, c('stationary','slow','fast'))
-dsc <- dsc[dsc$targV==-1,]
-head(dsc)
-```
-
-## GLM
-```{r}
-pvalfn(lmer(thresh ~ dom + stairStart + sess + maskType * targTpeak_b * targEcc_b +
-                 (1|subj), data=dsc))
-pvalfn(lmer(thresh ~ dom + stairStart + sess + maskType * targTpeak_c * targEcc_c +
-                 (1|subj), data=dsc))
-```
-
-## BF
-
-```{r}
-ss <- dsc
-ss$slow <- 0
-ss$slow[ss$maskType=='slow'] <- 1
-ss$fast <- 0
-ss$fast[ss$maskType=='fast'] <- 1
-ss$subj <- factor(ss$subj)
-```
-
-```{r}
-## on stationary
-ss_stat <- ss[ss$maskType=='stationary',]
-1/generalTestBF(thresh ~ dom + sess + stairStart + targTpeak_b + targEcc_b + subj, 
-                  data=ss_stat, whichRandom='subj', neverExclude='subj', 
-                  whichModels='top')
-mMain <- lmBF(thresh ~ dom + sess + stairStart + targTpeak_b + targEcc_b + subj, 
-              data=ss_stat, whichRandom='subj')
-mInt <- lmBF(thresh ~ dom + sess + stairStart + targTpeak_b + targEcc_b + subj +
-                 targTpeak_b:targEcc_b, 
-              data=ss_stat, whichRandom='subj')
-mInt/mMain
-```
-
-```{r}
-## on slow & stationary
-ss_nonfast <- ss[ss$maskType!='fast',]
-mMain <- lmBF(thresh ~ dom + sess + stairStart + targTpeak_b + targEcc_b + subj +
-                  targTpeak_b:targEcc_b, data=ss_nonfast, whichRandom='subj')
-mInt <- lmBF(thresh ~ dom + sess + stairStart + targTpeak_b + targEcc_b + subj +
-                 targTpeak_b:targEcc_b + slow, 
-              data=ss_nonfast, whichRandom='subj')
-mInt/mMain
-mInt1 <- lmBF(thresh ~ dom + sess + stairStart + targTpeak_b + targEcc_b + subj +
-                 targTpeak_b:targEcc_b + slow + slow:targTpeak_b, 
-              data=ss_nonfast, whichRandom='subj')
-mInt1/mInt
-mInt2 <- lmBF(thresh ~ dom + sess + stairStart + targTpeak_b + targEcc_b + subj +
-                 targTpeak_b:targEcc_b + slow + slow:targEcc_b, 
-              data=ss_nonfast, whichRandom='subj')
-mInt2/mInt
-```
-
-```{r}
-## on slow & stationary
-ss_nonslow <- ss[ss$maskType!='slow',]
-mMain <- lmBF(thresh ~ dom + sess + stairStart + targTpeak_b + targEcc_b + subj +
-                  targTpeak_b:targEcc_b, data=ss_nonslow, whichRandom='subj')
-mInt <- lmBF(thresh ~ dom + sess + stairStart + targTpeak_b + targEcc_b + subj +
-                 targTpeak_b:targEcc_b + fast, 
-              data=ss_nonslow, whichRandom='subj')
-mInt/mMain
-mInt1 <- lmBF(thresh ~ dom + sess + stairStart + targTpeak_b + targEcc_b + subj +
-                 targTpeak_b:targEcc_b + fast + fast:targTpeak_b, 
-              data=ss_nonslow, whichRandom='subj')
-mInt1/mInt
-mInt2 <- lmBF(thresh ~ dom + sess + stairStart + targTpeak_b + targEcc_b + subj +
-                 targTpeak_b:targEcc_b + fast + fast:targEcc_b, 
-              data=ss_nonslow, whichRandom='subj')
-mInt2/mInt
 ```

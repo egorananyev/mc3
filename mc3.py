@@ -255,7 +255,8 @@ def writeStair(thisStair, filePath):
 
 def dfStair(thisStair, expName, expPara, targEyeR):
     mcPeriFade = thisStair.extraInfo['mcPeriFade']
-    mcPeriGap = np.int(thisStair.extraInfo['mcSz']/2-mcPeriFade)
+    #mcPeriGap = np.int(thisStair.extraInfo['mcSz']/2-mcPeriFade)
+    mcPeriGap = thisStair.extraInfo['mcPeriGap']
     meanRev6 = np.average(thisStair.reversalIntensities[-6:])
     # have the information recorded in a csv file as well:
     dT = pd.DataFrame({'expName': expName, 'expPara': expPara,
@@ -463,7 +464,8 @@ while len(stairs)>0:
         # view setup: fade, gap, and fixation cross
         fixCross = thisStair.extraInfo['fixCross']
         periFade = thisStair.extraInfo['mcPeriFade']
-        periGap = np.int(mcSz / 2 - periFade)
+        #periGap = np.int(mcSz / 2 - periFade)
+        periGap = thisStair.extraInfo['mcPeriGap']
         #print 'periFade=' + str(periFade) + '; periGap=' + str(periGap)
 
         nFrames = 60 # number of frames per sequence
@@ -489,7 +491,7 @@ while len(stairs)>0:
         x, y = np.meshgrid(x, y)
         R_targ = np.sqrt((x+.5)**2 + (y+.5)**2) # adding .5 ensures symmetry
 
-        mcPeriTarg = periMask(targSz, periFade*2, R)
+        mcPeriTarg = periMask(targSz, targSz*4, R)
 
         #------prepare to start routine "trial"-------
         t = 0
