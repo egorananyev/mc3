@@ -90,7 +90,7 @@ expInfo = {u'session': u'', u'participant': u'', u'experiment': expName,
            u'para': '', u'dom': ''}
 expName = expInfo['experiment']
 # dom 0 = left, 1 = right, '' = unkown (do the domTest)
-dlg = gui.DlgFromDict(dictionary=expInfo, title='mc2') # dialogue box
+dlg = gui.DlgFromDict(dictionary=expInfo, title=expName) # dialogue box
 if dlg.OK == False: core.quit()  # user pressed cancel
 timeNow = datetime.now()
 expInfo['time'] = datetime.now().strftime('%Y-%m-%d_%H%M')
@@ -105,7 +105,7 @@ else: # if domTest==False, fixed targEye:
     targEyeR = 2-(2**domEyeR)
 
 # Setup the Window
-win = visual.Window(size=dr, fullscr=False, screen=1, allowGUI=False, 
+win = visual.Window(size=dr, fullscr=False, screen=0, allowGUI=False, 
       allowStencil=False, color='grey', blendMode='avg', useFBO=True, units='pix')
 # store frame rate of monitor if we can measure it successfully:
 frameRate=win.getActualFrameRate()
@@ -223,7 +223,7 @@ for thisCond in condList:
     thisInfo = copy.copy(thisCond)
     stairLabel = 'st' + str(thisCond['startContr']) + \
                  '_mcBv' + str(thisCond['mcBv']) + \
-                 '_targTpeak' + str(thisCond['targTpeak']) + \
+                 '_targTon' + str(thisCond['targTon']) + \
                  '_ecc' + str(thisCond['targXoff2'])
     if domTest: stairLabel += '_targEyeR' + str(thisCond['targEyeR'])
     thisInfo['label'] = stairLabel
@@ -276,7 +276,7 @@ def dfStair(thisStair, expName, expPara, targEyeR):
                        'targXoff2': thisStair.extraInfo['targXoff2'],
                        'targYoff': thisStair.extraInfo['targYoff'],
                        'targTtot': thisStair.extraInfo['targTtot'],
-                       'targTpeak': thisStair.extraInfo['targTpeak'],
+                       'targTon': thisStair.extraInfo['targTon'],
                        'targEyeR': targEyeR,
                        'trialT': thisStair.extraInfo['trialT'],
                        'fixCross': thisStair.extraInfo['fixCross'],
@@ -288,7 +288,7 @@ def dfStair(thisStair, expName, expPara, targEyeR):
 
 dataCols = ['expName', 'expPara', 'time', 'participant', 'dom', 'session', 'nRevs',
             'mcSz', 'mcSf', 'mcBv', 'mcBsf', 'mcPeriGap', 'mcPeriFade', 
-            'targSz', 'targXoff1', 'targXoff2', 'targYoff', 'targTtot', 'targTpeak', 'trialT',
+            'targSz', 'targXoff1', 'targXoff2', 'targYoff', 'targTtot', 'targTon', 'trialT',
             'fixCross', 'stairLabel', 'stairStart', 'meanRev6']
 
 
@@ -453,9 +453,8 @@ while len(stairs)>0:
 
         # temporal variables:
         targTtot = thisStair.extraInfo['targTtot']
-        targTpeak = thisStair.extraInfo['targTpeak']
-        targTstart = targTpeak-(targTtot/2)
-        targTend = targTpeak+(targTtot/2)
+        targTon = thisStair.extraInfo['targTon']
+        targTend = targTon + targTtot
         trialT = thisStair.extraInfo['trialT'] # -win.monitorFramePeriod*0.75
         
         print 'TRIAL' + '\t' + 'CONTRAST' + '\t\t' + 'mcBv'
@@ -570,10 +569,8 @@ while len(stairs)>0:
                     fixL.draw()
                     fixR.draw()
                 # target presentation:
-                if t > targTstart and t < targTpeak:
-                    mcTarg.opacity = sigmoidMod((t-targTstart)*2/targTtot)*10**float(thisContr)
-                elif t > targTpeak and t < targTend:
-                    mcTarg.opacity = sigmoidMod((targTend-t)*2/targTtot)*10**float(thisContr)
+                if t > targTstart and t < targTend:
+                    mcTarg.opacity = 10**float(thisContr)
                 else:
                     mcTarg.opacity = 0
                 mcTarg.draw()
