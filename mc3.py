@@ -569,7 +569,7 @@ while len(stairs)>0:
                     fixL.draw()
                     fixR.draw()
                 # target presentation:
-                if t > targTstart and t < targTend:
+                if t > targTon and t < targTend:
                     mcTarg.opacity = 10**float(thisContr)
                 else:
                     mcTarg.opacity = 0
@@ -608,7 +608,7 @@ while len(stairs)>0:
                         fdbTextR.text = fdbStr0
                         targRespGiven = True
                     if targRespGiven: # this is overwritten every time any key is pressed
-                        rt = t - targTstart
+                        rt = t - targTon
                         if behRespTrial == thisTargXoff: corrResp = 1 # correct dir resp
                         else: corrResp = 0 # this is the result from both 0 and wrong dir resp
                         if thisContr <= -2: corrResp = 0
