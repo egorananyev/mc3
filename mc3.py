@@ -431,8 +431,7 @@ while len(stairs)>0:
         mcBsf = thisStair.extraInfo['mcBsf']
         #thisMaskOri = np.rint(np.random.rand(1) * 360)
         #print 'mask ori=' + str(thisMaskOri)
-        if mcBv <= 0.01:
-            thisMaskFrame = np.random.randint(60)
+        thisMaskFrame = np.random.randint(60)
 
         # target:
         targSz = thisStair.extraInfo['targSz']
