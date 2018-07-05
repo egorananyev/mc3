@@ -57,8 +57,8 @@ if(out || render){
     # colLab <- expression(paste('\nTarget\nVelocity (', degree, '/s)', sep=''))
     colLab <- expression(paste('Target Eccentricity (', degree, ')', sep=''))
     # colLabType <- 'Mask Type'
-    yLim <- c(-1.7,-0.5)
-    dodge <- position_dodge(width=0.1)
+    yLim <- c(-1.25,-0.75)
+    dodge <- position_dodge(width=0.0)
 }
 ```
 
@@ -74,7 +74,7 @@ if(out || render){
                 legend.background = element_rect(fill='transparent'),
                 plot.title=element_text(face='bold'))
     }
-    sumFn <- function(ss, subjStr='subj', xStr='targTpeak', grpStr='targEcc'){
+    sumFn <- function(ss, subjStr='subj', xStr='targTon', grpStr='targEcc'){
         sumSubj <- ddply(ss, c(subjStr, xStr, grpStr), summarise,
                          mnS=mean(threshMean), se=sd(threshMean)/sqrt(length(threshMean))) 
         # total mean across conditions per subj
@@ -92,7 +92,7 @@ if(out || render){
         sumComb$se[is.na(sumComb$se)] <- 0
         sumComb
     }
-    plotAve <- function(pss, subjStr='subj', xStr='targTpeak', grpStr='targEcc', 
+    plotAve <- function(pss, subjStr='subj', xStr='targTon', grpStr='targEcc', 
                         xlab=xLab, ylab=yLab, collab=colLab, yStr='mn', seStr='se'){
         pss$yMin <- pss[,yStr] - pss[,seStr]
         pss$yMax <- pss[,yStr] + pss[,seStr]
@@ -101,13 +101,13 @@ if(out || render){
                                 ymin='yMin', ymax='yMax')) +
             geom_point(position=dodge, size=1, alpha=alpha) + 
             geom_line(position=dodge, alpha=alpha) +
-            scale_x_continuous(breaks=c(.5,1,1.5), labels=c('0.5','1','1.5')) +
+            scale_x_continuous(breaks=c(0,.75), labels=c('0','0.75')) +
             geom_linerange(position=dodge, show.legend=F, alpha=alpha) +
             labs(x=xlab, y=ylab, colour=collab) + ylim(yLim) +
             guides(colour=guide_legend(keyheight=.3, default.unit='inch'))
         p <- themefy(p)
     }
-    plotIndiv <- function(pss, subjStr='subj', xStr='targTpeak', grpStr='targEcc', 
+    plotIndiv <- function(pss, subjStr='subj', xStr='targTon', grpStr='targEcc', 
                         xlab=xLab, ylab=yLab, collab=colLab, yStr='mn', seStr='se'){
         pss$yMin <- pss[,yStr] - pss[,seStr]
         pss$yMax <- pss[,yStr] + pss[,seStr]
@@ -131,7 +131,7 @@ if(out || render){
 allDataDir <- paste(db,'Projects/mc/data_mc3',sep='')
 dataDirs <- dir(allDataDir)
 dataDirs <- dataDirs[grep('mc3',dataDirs)]
-colsOfInt <- c('participant', 'dom', 'session', 'mcBv', 'targTpeak', 'targXoff2', 'mcPeriGap', 
+colsOfInt <- c('participant', 'dom', 'session', 'mcBv', 'targTon', 'targXoff2', 'mcPeriGap', 
                'stairStart', 'meanRev6')
 df <- data.frame()
 dfRevs <- data.frame()
@@ -153,7 +153,7 @@ for(curDir in dataDirs){
                                       stairStart=curInfo[which(curInfo==" u'startContr':")+1], 
                                       maskV=curInfo[which(curInfo==" u'mcBv':")+1], 
                                       maskSz=curInfo[which(curInfo==" u'mcPeriGap':")+1], 
-                                      targTpeak=curInfo[which(curInfo==" u'targTpeak':")+1], 
+                                      targTon=curInfo[which(curInfo==" u'targTon':")+1], 
                                       targEcc=curInfo[which(curInfo==" u'targXoff2':")+1])
             curDfRevs <- cbind(curInfoCols, curRevs[,2:9])
             nTrials <- ncol(curIntn)-1
@@ -189,25 +189,25 @@ head(ds)
 
 Collapsing across low and high stair starts to derive the averages for each condition.
 ```{r}
-thresh <- ddply(ds, .(subj,dom,sess,maskV,maskType,maskSz,targTpeak,targEcc), summarise, 
+thresh <- ddply(ds, .(subj,dom,sess,maskV,maskType,maskSz,targTon,targEcc), summarise, 
                 threshMean = mean(thresh))
 head(thresh)
 ```
 
 # QC
 For quality control, it's not necessary to include the description of the conditions in the plots, as the convergence of the staircases should be the main focus.
-```{r, fig.height=10, fig.width=10}
+```{r, fig.height=4, fig.width=7}
 if(qc){
     plotQc <- function(pss){
         plot(ggplot(pss, aes(x=trial, y=intn, colour=targEcc, linetype=stairStart)) +
-            facet_wrap(subj ~ targTpeak, ncol=6) + geom_point() + geom_line() + ylim(-2,0))
+            facet_wrap(subj ~ targTon, ncol=6) + geom_point() + geom_line() + ylim(-2,0))
     }
     a <- dlply(dfIntn, .(maskV, maskSz), plotQc) 
 }
 ```
 
 # Individual plots
-```{r, fig.height=6, fig.width=7}
+```{r, fig.height=3, fig.width=4}
 if(render){
     plotIndivFn <- function(pss){
         ss <- sumFn(pss)
@@ -220,7 +220,7 @@ if(render){
 ```
 
 # Group plots
-```{r, fig.height=7.2, fig.width=7}
+```{r, fig.height=4, fig.width=7}
 if(render || out){
     groupPlot <- function(pss, maskVstr, maskSzVal){
         ss <- sumFn(pss[(pss$maskType==maskVstr & pss$maskSz==maskSzVal),])
@@ -233,7 +233,7 @@ if(render || out){
                       ncol=2, nrow=2) #widths=c((1-w)/2,w/2))
     # if(render){plot(p)}
     if(out){
-        jpeg('mc3.jpg', width=7, height=6.3, units='in', res=600)
+        jpeg('mc3.jpg', width=7, height=4.2, units='in', res=600)
         plot(p)
         dev.off()
         }

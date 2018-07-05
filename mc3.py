@@ -105,7 +105,7 @@ else: # if domTest==False, fixed targEye:
     targEyeR = 2-(2**domEyeR)
 
 # Setup the Window
-win = visual.Window(size=dr, fullscr=False, screen=0, allowGUI=False, 
+win = visual.Window(size=dr, fullscr=False, screen=1, allowGUI=False, 
       allowStencil=False, color='grey', blendMode='avg', useFBO=True, units='pix')
 # store frame rate of monitor if we can measure it successfully:
 frameRate=win.getActualFrameRate()
