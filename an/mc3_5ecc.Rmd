@@ -57,7 +57,7 @@ if(out || render){
     # colLab <- expression(paste('\nTarget\nVelocity (', degree, '/s)', sep=''))
     colLab <- expression(paste('Target Eccentricity (', degree, ')', sep=''))
     # colLabType <- 'Mask Type'
-    yLim <- c(-1.5,-0.5)
+    yLim <- c(-1.15,-0.45)
     dodge <- position_dodge(width=0.0)
 }
 ```
