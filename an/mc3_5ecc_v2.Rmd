@@ -267,24 +267,28 @@ dsb <- dsc
 dsb$targTon <- (dsb$targTon + 1) / 2
 dsb$maskV <- (dsb$maskV + 1) / 2
 dsb$maskSz <- (dsb$maskSz + 1) / 2
+dsb$targEcc <- (dsb$targEcc + 1) / 2
 head(dsb)
 ```
 
-## Cross-size effects
+## Cross-size effects (no far target)
 ```{r}
-## ANOVA-style analysis on centered vars:
-# pvalfn(lmer(thresh ~ dom + stairStart + maskV * targTon * targEcc_ * maskSz +
-#                  (1|subj), data=dsc))
 ## Regression-style analysis on binary vars:
-# pvalfn(lmer(thresh ~ dom + stairStart + maskV * targTon * targEcc_ * maskSz +
-#                  (1|subj), data=dsb))
+dfnf <- dsb[dsb$targEcc_!='far',] # dfNoFar
+dfnf$targEcc <- dfnf$targEcc + 1
+pvalfn(lmer(thresh ~ dom + stairStart + maskV * targTon * targEcc * maskSz +
+                 (1|subj), data=dfnf))
+pvalfn(lmer(thresh ~ dom * stairStart * maskV * targTon * targEcc * maskSz +
+                 (1|subj), data=dfnf))
 ```
 
+## Only large mask (no small mask)
 ```{r}
-## Analyzing the same data, but without the farthest eccentricity
-# dsNear <- dsc[dsc$targEcc!=1,] # excluding the farthest target
-# dsNear$targEcc <- (dsNear$targEcc * 2) - 1 # centering the new targEcc var
-# dsNear$targEcc_b <- (dsNear$targEcc + 1) / 2 # creating a binary version of the var
+dfns <- dsb[dsb$maskSz>0,] # dfNoFar
+pvalfn(lmer(thresh ~ dom + stairStart + maskV * targTon * targEcc +
+                 (1|subj), data=dfns))
+pvalfn(lmer(thresh ~ dom * stairStart * maskV * targTon * targEcc +
+                 (1|subj), data=dfns))
 ```
 
 ```{r}
