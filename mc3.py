@@ -638,13 +638,15 @@ while len(stairs)>0:
                 # keep track of start time/frame for later
                 ISI.tStart = t  # underestimates by a little under one frame
                 ISI.frameNStart = frameN  # exact frame index
-                fixL.setAutoDraw(True)
-                fixR.setAutoDraw(True)
+                if fixCross:
+                    fixL.setAutoDraw(True)
+                    fixR.setAutoDraw(True)
                 ISI.start(ISIduration)
             #one frame should pass before updating params and completing
             elif ISI.status == STARTED and t >= (ISI.tStart + ISIduration): 
-                fixL.setAutoDraw(False)
-                fixR.setAutoDraw(False)
+                if fixCross:
+                    fixL.setAutoDraw(False)
+                    fixR.setAutoDraw(False)
                 ISI.complete() #finish the static period
                 continueRoutine = False
             

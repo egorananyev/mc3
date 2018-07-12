@@ -22,8 +22,8 @@ code.r{
 ```{r set-options, message=F}
 options(width=100)
 out=F # do we output the plots?
-render=T # do we render the plots?
-qc=T # do we need quality control (stair plots)?
+render=F # do we render the plots?
+qc=F # do we need quality control (stair plots)?
 an=T # do we run the analyses?
 # The list of subjects, the order of conditions, and the thresholds are derived from Subjects.xlsx
 library(xlsx)
@@ -57,7 +57,7 @@ if(out || render){
     # colLab <- expression(paste('\nTarget\nVelocity (', degree, '/s)', sep=''))
     colLab <- expression(paste('Target Eccentricity (', degree, ')', sep=''))
     # colLabType <- 'Mask Type'
-    yLim <- c(-1.05,-0.45)
+    yLim <- c(-1.15,-0.45)
     dodge <- position_dodge(width=0.0)
 }
 ```
@@ -74,8 +74,8 @@ if(out || render){
                 legend.background = element_rect(fill='transparent'),
                 plot.title=element_text(face='bold'))
     }
-    sumFn <- function(ss, subjStr='subj', xStr='targTon', grpStr='targEcc', lineStr='maskSz'){
-        sumSubj <- ddply(ss, c(subjStr, xStr, grpStr, lineStr), summarise,
+    sumFn <- function(ss, subjStr='subj', xStr='targTon', grpStr='targEcc'){
+        sumSubj <- ddply(ss, c(subjStr, xStr, grpStr), summarise,
                          mnS=mean(threshMean), se=sd(threshMean)/sqrt(length(threshMean))) 
         # total mean across conditions per subj
         sumSubjMn <- ddply(ss, c(subjStr), summarise, mnStot=mean(threshMean)) 
@@ -83,7 +83,7 @@ if(out || render){
         sumSubj$normS <- - sumSubj$mnS / sumSubj$mnStot # normalized subject mean
         sumSubj$seNorm <- NA
         # sumSubj$mnS[is.na(sumSubj$mnS)] <- 0
-        sumGrp <- ddply(sumSubj, c(xStr, grpStr, lineStr), summarise,
+        sumGrp <- ddply(sumSubj, c(xStr, grpStr), summarise,
                       mn=mean(mnS), se=sd(mnS)/sqrt(length(mnS)),
                       norm=mean(normS), seNorm=sd(normS)/sqrt(length(normS)))
         sumGrp$subj <- 'average'
@@ -92,20 +92,18 @@ if(out || render){
         sumComb$se[is.na(sumComb$se)] <- 0
         sumComb
     }
-    plotAve <- function(pss, subjStr='subj', xStr='targTon', grpStr='targEcc',
-                        xlab=xLab, ylab=yLab, collab=colLab, yStr='mn', seStr='se',
-                        lineStr='maskSzStr', lineLab='Mask Size'){
+    plotAve <- function(pss, subjStr='subj', xStr='targTon', grpStr='targEcc', 
+                        xlab=xLab, ylab=yLab, collab=colLab, yStr='mn', seStr='se'){
         pss$yMin <- pss[,yStr] - pss[,seStr]
         pss$yMax <- pss[,yStr] + pss[,seStr]
-        pss$inter <- interaction(pss[,grpStr], pss[,lineStr])
-        pss[,grpStr] <- as.factor(pss[,grpStr])
-        p <- ggplot(pss, aes_string(x=xStr, y=yStr, group='inter',   
-                                    colour=grpStr, linetype=lineStr, ymin='yMin', ymax='yMax')) +
+        pss[,grpStr] <- factor(pss[,grpStr])
+        p <- ggplot(pss, aes_string(x=xStr, y=yStr, colour=grpStr, group=grpStr,
+                                ymin='yMin', ymax='yMax')) +
             geom_point(position=dodge, size=1, alpha=alpha) + 
             geom_line(position=dodge, alpha=alpha) +
             scale_x_continuous(breaks=c(0,.75), labels=c('0','0.75')) +
             geom_linerange(position=dodge, show.legend=F, alpha=alpha) +
-            labs(x=xlab, y=ylab, colour=collab, linetype=lineLab) + ylim(yLim) +
+            labs(x=xlab, y=ylab, colour=collab) + ylim(yLim) +
             guides(colour=guide_legend(keyheight=.3, default.unit='inch'))
         p <- themefy(p)
     }
@@ -130,7 +128,7 @@ if(out || render){
 
 ## Loading the data
 ```{r}
-allDataDir <- paste(db,'Projects/mc/data_mc3',sep='')
+allDataDir <- paste(db,'Projects/mc/data_mc3/v2 - noFixation',sep='')
 dataDirs <- dir(allDataDir)
 dataDirs <- dataDirs[grep('mc3',dataDirs)]
 colsOfInt <- c('participant', 'dom', 'session', 'mcBv', 'targTon', 'targXoff2', 'mcPeriGap', 
@@ -222,23 +220,20 @@ if(render){
 ```
 
 # Group plots
-```{r, fig.height=4, fig.width=3.2}
+```{r, fig.height=4, fig.width=7}
 if(render || out){
-    groupPlot <- function(pss, maskVstr){
-        ss <- sumFn(pss[(pss$maskType==maskVstr),])
-        ss$maskSzStr <- 'small'
-        ss$maskSzStr[ss$maskSz==7.3] <- 'large'
+    groupPlot <- function(pss, maskVstr, maskSzVal){
+        ss <- sumFn(pss[(pss$maskType==maskVstr & pss$maskSz==maskSzVal),])
         themefy(plotAve(ss[ss$subj=='average',]))
     }
-    p <- grid.arrange(groupPlot(thresh,'stationary') + ggtitle('stationary mask') +
-                          guides(linetype=F) + theme(legend.justification='bottom'), 
-                      groupPlot(thresh,'fast') + ggtitle('fast mask') + 
-                          guides(colour=F) + theme(legend.justification='top',
-                                                   plot.margin=unit(c(.2,1.78,.2,.2),'cm')),
-                      nrow=2) #widths=c((1-w)/2,w/2))
+    p <- grid.arrange(groupPlot(thresh,'stationary',5.5) + ggtitle('stationary small mask'), 
+                      groupPlot(thresh,'stationary',7.3) + ggtitle('stationary large mask'), 
+                      groupPlot(thresh,'fast',5.5) + ggtitle('fast small mask'),
+                      groupPlot(thresh,'fast',7.3) + ggtitle('fast large mask'),
+                      ncol=2, nrow=2) #widths=c((1-w)/2,w/2))
     # if(render){plot(p)}
     if(out){
-        jpeg('mc3.jpg', width=3.2, height=4.2, units='in', res=600)
+        jpeg('mc3.jpg', width=7, height=4.2, units='in', res=600)
         plot(p)
         dev.off()
         }
@@ -247,8 +242,8 @@ if(render || out){
 
 # Analyses
 
-## Scaling function
 ```{r}
+## Scaling function
 cent <- function(v){
     v <- apply(v,2,function(x){
         x <- x - mean(unique(x),na.rm=T)
@@ -257,24 +252,42 @@ cent <- function(v){
 }
 ```
 
-### Centered data set
 ```{r}
+## Centered data set
 dsc <- ds
-centCols <- c('dom','targTpeak','stairStart','targEcc','maskV','maskSz','sess')
+centCols <- c('dom','stairStart','targTon','targEcc','maskV','maskSz')
 dsc[,centCols] <- cent(dsc[,centCols])
-dsc$targEcc_b <- round((dsc$targEcc + 1) / 2,0)
-dsc$targTpeak_b <- (dsc$targTpeak + 1) / 2
-dsc$targTpeak_c <-  dsc$targTpeak_b * 2 - 1
-dsc$targEcc_c <-  dsc$targEcc_b * 2 - 1
-dsc$maskType <- factor(dsc$maskType, c('stationary','slow','fast'))
-dsc <- dsc[dsc$targV==-1,]
+dsc$targEcc_ <- 'central'
+dsc$targEcc_[dsc$targEcc==0] <- 'near'
+dsc$targEcc_[dsc$targEcc==1] <- 'far'
+dsc$targEcc_ <- factor(dsc$targEcc_)
 head(dsc)
+## Binarized data set
+dsb <- dsc
+dsb$targTon <- (dsb$targTon + 1) / 2
+dsb$maskV <- (dsb$maskV + 1) / 2
+dsb$maskSz <- (dsb$maskSz + 1) / 2
+head(dsb)
 ```
 
-## GLM
+## Cross-size effects
 ```{r}
-pvalfn(lmer(thresh ~ dom + stairStart + sess + maskType * targTpeak_b * targEcc_b +
-                 (1|subj), data=dsc))
-pvalfn(lmer(thresh ~ dom + stairStart + sess + maskType * targTpeak_c * targEcc_c +
-                 (1|subj), data=dsc))
+## ANOVA-style analysis on centered vars:
+# pvalfn(lmer(thresh ~ dom + stairStart + maskV * targTon * targEcc_ * maskSz +
+#                  (1|subj), data=dsc))
+## Regression-style analysis on binary vars:
+# pvalfn(lmer(thresh ~ dom + stairStart + maskV * targTon * targEcc_ * maskSz +
+#                  (1|subj), data=dsb))
+```
+
+```{r}
+## Analyzing the same data, but without the farthest eccentricity
+# dsNear <- dsc[dsc$targEcc!=1,] # excluding the farthest target
+# dsNear$targEcc <- (dsNear$targEcc * 2) - 1 # centering the new targEcc var
+# dsNear$targEcc_b <- (dsNear$targEcc + 1) / 2 # creating a binary version of the var
+```
+
+```{r}
+# pvalfn(lmer(thresh ~ dom + stairStart + maskV * targTon * targEcc_b * maskSz +
+#                  (1|subj), data=dsNear))
 ```
