@@ -22,8 +22,8 @@ code.r{
 ```{r set-options, message=F}
 options(width=100)
 out=F # do we output the plots?
-render=F # do we render the plots?
-qc=F # do we need quality control (stair plots)?
+render=T # do we render the plots?
+qc=T # do we need quality control (stair plots)?
 an=T # do we run the analyses?
 # The list of subjects, the order of conditions, and the thresholds are derived from Subjects.xlsx
 library(xlsx)
@@ -31,7 +31,6 @@ library(plyr)
 library(reshape)
 library(matrixStats)
 #library(splines)
-db <- '/home/egor/Dropbox/' # on Linux
 db <- '/Users/Egor/Dropbox/' # Windows
 # db <- '~/Dropbox/' # on Mac
 if(out || render){
@@ -175,6 +174,11 @@ if(qc){
 }
 ds <- rename(df, c(participant='subj', session='sess', meanRev6='thresh',
                    mcBv='maskV', targXoff2='targEcc', mcPeriGap='maskSz'))
+## Adding subject dominance thresholds:
+dom_ds <- read.xlsx(paste0(db,'Projects/mc/mc3/subjs-mc3.xlsx'), 2, colIndex=c(1:8),
+                    rowIndex=c(1:(length(unique(ds$subj))+1))) # 2nd sheet
+ds <- merge(ds, dom_ds[,c('threshL','threshR')])
+## Fixing the variable scales & factors:
 ds$targEcc <- round(ds$targEcc / 35,1)
 ds$maskType <- ''
 ds$maskType[ds$maskV==0.01] <- 'stationary'
