@@ -1,0 +1,352 @@
+---
+title: "Motion cloud masks and targets"
+author: "Egor Ananyev"
+date: "July 3, 2018"
+output:
+    html_document:
+        toc: true
+---
+
+<style type="text/css">
+body, td{
+  font-family: Cambria;
+}
+code.r{
+  font-family: Inconsolata;
+}
+</style>
+
+# Preparing the data
+
+## Loading the packages and data directories
+```{r set-options, message=F}
+options(width=100)
+out=F # do we output the plots?
+render=T # do we render the plots?
+qc=T # do we need quality control (stair plots)?
+an=T # do we run the analyses?
+# The list of subjects, the order of conditions, and the thresholds are derived from Subjects.xlsx
+library(xlsx)
+library(plyr)
+library(reshape)
+library(matrixStats)
+#library(splines)
+db <- '/Users/Egor/Dropbox/' # Windows
+# db <- '~/Dropbox/' # on Mac
+if(out || render){
+    library(ggplot2)
+    library(gridExtra)
+}
+if(an){
+    source(paste(db, 'Prog/R/myFunctions/pvalfn.R', sep=''))
+    library(lme4)
+    library(lmerTest)
+    library(BayesFactor)
+}
+```
+
+## Plot variables
+```{r, message=FALSE, warning=FALSE}
+if(out || render){
+    # theme for plotting:
+    alpha <- .7
+    w <- .56 # proportion width in group plots
+    xLab <- 'Target Speed'
+    yLab <- 'Log Contrast Threshold'
+    # colLab <- expression(paste('\nTarget\nVelocity (', degree, '/s)', sep=''))
+    colLab <- expression(paste('Target Eccentricity (', degree, ')', sep=''))
+    # colLabType <- 'Mask Type'
+    # yLim <- c(-1.15,-0.45)
+    yLim <- c(-1,-0.2)
+    dodge <- position_dodge(width=0.0)
+}
+```
+
+## Plot functions
+```{r}
+if(out || render){
+    themefy <- function(p) {
+        p <- p + theme_bw() + 
+             theme(panel.grid.minor.x=element_blank(), panel.grid.minor.y=element_blank(),
+                axis.text=element_text(size=8), axis.title=element_text(size=9),
+                legend.text=element_text(size=8), legend.title=element_text(size=9),
+                legend.key = element_blank(), legend.margin=margin(t=-.04, unit='in'),
+                legend.background = element_rect(fill='transparent'),
+                plot.title=element_text(face='bold'))
+    }
+    sumFn <- function(ss, subjStr='subj', xStr='targV', grpStr='targEcc'){
+        sumSubj <- ddply(ss, c(subjStr, xStr, grpStr), summarise,
+                         mnS=mean(threshMean), se=sd(threshMean)/sqrt(length(threshMean))) 
+        # total mean across conditions per subj
+        sumSubjMn <- ddply(ss, c(subjStr), summarise, mnStot=mean(threshMean)) 
+        sumSubj <- merge(sumSubj, sumSubjMn)
+        sumSubj$normS <- - sumSubj$mnS / sumSubj$mnStot # normalized subject mean
+        sumSubj$seNorm <- NA
+        # sumSubj$mnS[is.na(sumSubj$mnS)] <- 0
+        sumGrp <- ddply(sumSubj, c(xStr, grpStr), summarise,
+                      mn=mean(mnS), se=sd(mnS)/sqrt(length(mnS)),
+                      norm=mean(normS), seNorm=sd(normS)/sqrt(length(normS)))
+        sumGrp$subj <- 'average'
+        sumSubj <- rename(sumSubj, c(mnS='mn',normS='norm'))
+        sumComb <- rbind(sumGrp, subset(sumSubj, select=-mnStot))
+        sumComb$se[is.na(sumComb$se)] <- 0
+        sumComb
+    }
+    plotAve <- function(pss, subjStr='subj', xStr='targV', grpStr='targEcc', 
+                        xlab=xLab, ylab=yLab, collab=colLab, yStr='mn', seStr='se'){
+        pss$yMin <- pss[,yStr] - pss[,seStr]
+        pss$yMax <- pss[,yStr] + pss[,seStr]
+        pss[,grpStr] <- factor(pss[,grpStr])
+        pss[,xStr] <- factor(pss[,xStr])
+        p <- ggplot(pss, aes_string(x=xStr, y=yStr, colour=grpStr, group=grpStr,
+                                ymin='yMin', ymax='yMax')) +
+            geom_point(position=dodge, size=1, alpha=alpha) + 
+            geom_line(position=dodge, alpha=alpha) +
+            # scale_x_continuous(breaks=c(0,.75), labels=c('0','0.75')) +
+            geom_linerange(position=dodge, show.legend=F, alpha=alpha) +
+            labs(x=xlab, y=ylab, colour=collab) + ylim(yLim) +
+            guides(colour=guide_legend(keyheight=.3, default.unit='inch'))
+        p <- themefy(p)
+    }
+    plotIndiv <- function(pss, subjStr='subj', xStr='targV', grpStr='targEcc', 
+                        xlab=xLab, ylab=yLab, collab=colLab, yStr='mn', seStr='se'){
+        pss$yMin <- pss[,yStr] - pss[,seStr]
+        pss$yMax <- pss[,yStr] + pss[,seStr]
+        pss[,grpStr] <- factor(pss[,grpStr])
+        pss[,xStr] <- factor(pss[,xStr])
+        p <- ggplot(pss, aes_string(x=xStr, y=yStr, colour=grpStr, group=grpStr,
+                                ymin='yMin', ymax='yMax')) + 
+            facet_wrap( ~ subj, ncol=4) +
+            geom_point(position=dodge, size=1, alpha=alpha) + 
+            geom_line(position=dodge, alpha=alpha) +
+            geom_linerange(position=dodge, show.legend=F, alpha=alpha) +
+            # scale_x_continuous(breaks=c(.5,1,1.5), labels=c('0.5','1','1.5')) +
+            labs(x=xlab, y=ylab, colour=collab) + ylim(c(-1.4,0)) + 
+            guides(colour=guide_legend(keyheight=.3, default.unit='inch'))
+        p <- themefy(p)
+    }
+}
+```
+
+## Loading the data
+```{r}
+allDataDir <- paste(db,'Projects/mc/data_mc3/v3 - speeds',sep='')
+dataDirs <- dir(allDataDir)
+dataDirs <- dataDirs[grep('mc3',dataDirs)]
+colsOfInt <- c('participant', 'dom', 'mcBv', 'targBv', 'targXoff2', 
+               'stairStart', 'meanRev6')
+df <- data.frame()
+dfRevs <- data.frame()
+dfIntn <- data.frame()
+for(curDir in dataDirs){
+    print(curDir)
+    curDf <- read.csv(paste(allDataDir,'/',curDir,'/',curDir,'.csv',sep=''))
+    curDf <- curDf[,colsOfInt]
+    if(qc){
+        subjStairs <- dir(paste(allDataDir,'/',curDir,'/',sep=''))
+        subjStairs <- subjStairs[grep('.tsv',subjStairs)]
+        for(curStairFN in subjStairs){
+            curStair <- paste(allDataDir,'/',curDir,'/',curStairFN,sep='')
+            curRevs <- read.table(curStair, skip=1, nrows=1)
+            curIntn <- read.table(curStair, skip=4, nrows=2)
+            curInfo <- readLines(curStair)
+            curInfoCols <- data.frame(subj=curDf$participant[1], dom=curDf$dom[1], 
+                                      stairStart=curInfo[which(curInfo==" u'startContr':")+1], 
+                                      maskV=curInfo[which(curInfo==" u'mcBv':")+1], 
+                                      targV=curInfo[which(curInfo==" u'targBv':")+1], 
+                                      targEcc=curInfo[which(curInfo==" u'targXoff2':")+1])
+            curDfRevs <- cbind(curInfoCols, curRevs[,2:11])
+            nTrials <- ncol(curIntn)-1
+            curDfIntn <- curInfoCols[rep(seq_len(nrow(curInfoCols)), each=nTrials),]
+            curDfIntn$trial <- seq(1,nTrials)
+            curDfIntn$intn <- as.numeric(curIntn[1,2:(nTrials+1)])
+            curDfIntn$resp <- as.numeric(curIntn[2,2:(nTrials+1)])
+            rownames(curDfIntn) <- NULL
+            dfRevs <- rbind(dfRevs, curDfRevs)
+            dfIntn <- rbind(dfIntn, curDfIntn)
+        }
+    }
+    df <- rbind(df, curDf)
+}
+if(qc){
+    dfIntn$maskV <- round(as.numeric(levels(dfIntn$maskV))[dfIntn$maskV] * 60 / 35, 1)
+    dfIntn$maskV[dfIntn$maskV<0.05] <- 0
+    head(dfIntn)
+}
+ds <- rename(df, c(participant='subj', meanRev6='thresh', mcBv='maskV', targXoff2='targEcc',
+                   targBv='targV'))
+## Compiling a data set for reversals (for analyses)
+df_revs <- melt(dfRevs, id.vars=c(1:7)) # no need to specify col name strings
+df_revs$variable <- as.numeric(df_revs$variable) # converting reversal names to numbers
+df_revs <- rename(df_revs, c(variable='rev_n', value='rev_val'))
+head(df_revs)
+## Adding subject dominance thresholds:
+dom_ds <- read.xlsx(paste0(db,'Projects/mc/mc3/subjs-mc3.xlsx'), 2, colIndex=c(1:8),
+                    rowIndex=c(1:(length(unique(ds$subj))+1))) # 2nd sheet
+ds <- merge(ds, dom_ds[,c('threshL','threshR')])
+## Fixing the variable scales & factors:
+ds$targEcc <- round(ds$targEcc / 35,1)
+ds$maskType <- ''
+ds$maskType[ds$maskV==0.01] <- 'stationary'
+ds$maskType[ds$maskV==0.6] <- 'slow'
+ds$maskType[ds$maskV==9.6] <- 'fast'
+ds$maskV <- round(ds$maskV * 60 / 35, 1)
+ds$maskV[ds$maskV<0.05] <- 0
+head(ds)
+```
+
+## Transformed data sets
+
+Collapsing across low and high stair starts to derive the averages for each condition.
+```{r}
+thresh <- ddply(ds, .(subj,dom,maskV,maskType,targV,targEcc), summarise, 
+                threshMean = mean(thresh))
+head(thresh)
+```
+
+# QC
+For quality control, it's not necessary to include the description of the conditions in the plots, as the convergence of the staircases should be the main focus.
+```{r, fig.height=10, fig.width=10}
+if(qc){
+    plotQc <- function(pss){
+        plot(ggplot(pss, aes(x=trial, y=intn, colour=targEcc, linetype=stairStart)) +
+            facet_wrap(subj ~ targV, ncol=6) + geom_point() + geom_line() + ylim(-2,0))
+    }
+    a <- dlply(dfIntn, .(maskV), plotQc) 
+}
+```
+
+# Individual plots
+```{r, fig.height=5, fig.width=10}
+if(render){
+    plotIndivFn <- function(pss){
+        ss <- sumFn(pss)
+        plotSs <- ss[ss$subj!='average',]
+        plot(plotIndiv(plotSs) + ggtitle(paste('maskV: ', unique(pss$maskType))))
+    }
+    a <- dlply(thresh, .(maskType), plotIndivFn)
+}
+```
+
+# Group plots
+```{r, fig.height=2.6, fig.width=7}
+if(render || out){
+    groupPlot <- function(pss, maskVstr){
+        ss <- sumFn(pss[(pss$maskType==maskVstr),])
+        themefy(plotAve(ss[ss$subj=='average',]))
+    }
+    p <- grid.arrange(groupPlot(thresh,'stationary') + ggtitle('stationary mask') +
+                          theme(legend.position='none'),
+                      groupPlot(thresh,'slow') + ggtitle('slow mask') + 
+                          theme(legend.position='none', axis.title.y=element_blank()),
+                      groupPlot(thresh,'fast') + ggtitle('fast mask') +
+                          theme(axis.title.y=element_blank()),
+                      ncol=3, widths=c(1.1,1,1.75))
+    # if(render){plot(p)}
+    if(out){
+        jpeg('mc3.jpg', width=7, height=2.6, units='in', res=600)
+        plot(p)
+        dev.off()
+        }
+}
+if(render || out){
+    groupPlot <- function(pss, maskVstr){
+        ss <- sumFn(pss[(pss$maskType==maskVstr),])
+        themefy(plotAve(ss[ss$subj=='average',], xStr='targEcc', grpStr='targV',
+                        xlab=colLab, collab=xLab))
+    }
+    p <- grid.arrange(groupPlot(thresh,'stationary') + ggtitle('stationary mask') +
+                          theme(legend.position='none'),
+                      groupPlot(thresh,'slow') + ggtitle('slow mask') + 
+                          theme(legend.position='none', axis.title.y=element_blank()),
+                      groupPlot(thresh,'fast') + ggtitle('fast mask') +
+                          theme(axis.title.y=element_blank()),
+                      ncol=3, widths=c(1.1,1,1.75))
+    # if(render){plot(p)}
+    if(out){
+        jpeg('mc3-2.jpg', width=7, height=2.6, units='in', res=600)
+        plot(p)
+        dev.off()
+        }
+}
+```
+
+# Analyses
+
+```{r}
+## Scaling function
+cent <- function(v){
+    v <- apply(v,2,function(x){
+        x <- x - mean(unique(x),na.rm=T)
+        x <- x / max(x)
+    })
+}
+```
+
+```{r}
+## Centered data set
+dsc <- ds
+centCols <- c('dom','stairStart','targV','targEcc','maskV')
+dsc[,centCols] <- cent(dsc[,centCols])
+dsc$targEcc_ <- 'central'
+dsc$targEcc_[dsc$targEcc==0] <- 'near'
+dsc$targEcc_[dsc$targEcc==1] <- 'far'
+dsc$targEcc_ <- factor(dsc$targEcc_)
+head(dsc)
+## Binarized data set
+dsb <- dsc
+dsb$targV <- (dsb$targV + 1) / 2
+dsb$maskV <- (dsb$maskV + 1) / 2
+dsb$targEcc <- (dsb$targEcc + 1) / 2
+head(dsb)
+```
+
+```{r}
+# pvalfn(lmer(thresh ~ dom + stairStart + maskV * targV * targEcc +
+# (1|subj), data=dsb))
+# pvalfn(lmer(thresh ~ dom * stairStart * maskV * targV * targEcc +
+# (1|subj), data=dsb))
+```
+
+```{r}
+# pvalfn(lmer(thresh ~ dom + stairStart + maskV * targV * targEcc_b * maskSz +
+#                  (1|subj), data=dsNear))
+```
+
+## On reversals
+```{r}
+## Centered data set
+rev_c <- df_revs[df_revs$rev_n>4,]
+rev_c$stairStart <- as.numeric(rev_c$stairStart)
+rev_c$maskV <- as.numeric(rev_c$maskV)
+rev_c$targV <- as.numeric(rev_c$targV)
+rev_c$targEcc <- as.numeric(rev_c$targEcc)
+centCols <- c('dom','stairStart','targV','targEcc','maskV')
+rev_c[,centCols] <- cent(rev_c[,centCols])
+rev_c$targEcc_ <- 'central'
+rev_c$targEcc_[rev_c$targEcc==0] <- 'near'
+rev_c$targEcc_[rev_c$targEcc==1] <- 'far'
+rev_c$targEcc_ <- factor(rev_c$targEcc_)
+rev_c$targEcc_ <- factor(rev_c$targEcc_, c('central','near','far'))
+rev_c$targV_ <- 'stat'
+rev_c$targV_[rev_c$targV==0] <- 'slow'
+rev_c$targV_[rev_c$targV==1] <- 'fast'
+rev_c$targV_ <- factor(rev_c$targV_, c('stat','slow','fast'))
+rev_c$maskV_ <- 'stat'
+rev_c$maskV_[rev_c$maskV==0] <- 'slow'
+rev_c$maskV_[rev_c$maskV==1] <- 'fast'
+rev_c$maskV_ <- factor(rev_c$maskV_, c('stat','slow','fast'))
+head(rev_c)
+## Binarized data set
+rev_b <- rev_c
+rev_b$targV <- (rev_b$targV + 1) / 2
+rev_b$maskV <- (rev_b$maskV + 1) / 2
+rev_b$targEcc <- (rev_b$targEcc + 1) / 2
+head(rev_b)
+```
+
+```{r}
+## A strictly linear model: will not capture nonlinearities in targEcc, targV & maskV
+pvalfn(lmer(rev_val ~ dom + stairStart + rev_n + maskV * targV * targEcc + (1|subj), data=rev_c))
+pvalfn(lmer(rev_val ~ dom + stairStart + rev_n + maskV_ * targV_ * targEcc_ + (1|subj), data=rev_c))
+```

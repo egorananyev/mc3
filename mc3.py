@@ -29,8 +29,8 @@ _thisDir = os.path.dirname(os.path.abspath(__file__))
 expName = 'mc3'
 # Window circles (specified in degrees of visual angles [dva]):
 #winSz = 7.2 # 5.03; calculated as 5/x=sqrt(2)/2 => x=10/sqrt(2)
-winOffX = 4.25 # 6 # 5.62
-winOffY = 2.5 # 5.5 (3.5cm ~= 124px)
+winOffX = 3.7 #4.25 (matching wallpaper)
+winOffY = 3.5 # 2.5 (3.5cm ~= 124px)
 winThickness = 2 # in pixels
 # Timing variables:
 ISIduration = .25
@@ -271,6 +271,7 @@ def dfStair(thisStair, expName, expPara, targEyeR):
                        'mcBsf': thisStair.extraInfo['mcBsf'],
                        'mcPeriGap': mcPeriGap,
                        'mcPeriFade': mcPeriFade,
+                       'targBv': thisStair.extraInfo['targBv'],
                        'targSz': thisStair.extraInfo['targSz'],
                        'targXoff1': thisStair.extraInfo['targXoff1'],
                        'targXoff2': thisStair.extraInfo['targXoff2'],
@@ -287,7 +288,7 @@ def dfStair(thisStair, expName, expPara, targEyeR):
 
 
 dataCols = ['expName', 'expPara', 'time', 'participant', 'dom', 'session', 'nRevs',
-            'mcSz', 'mcSf', 'mcBv', 'mcBsf', 'mcPeriGap', 'mcPeriFade', 
+            'mcSz', 'mcSf', 'mcBv', 'mcBsf', 'mcPeriGap', 'mcPeriFade', 'targBv',
             'targSz', 'targXoff1', 'targXoff2', 'targYoff', 'targTtot', 'targTon', 'trialT',
             'fixCross', 'stairLabel', 'stairStart', 'meanRev6']
 
@@ -434,6 +435,7 @@ while len(stairs)>0:
         thisMaskFrame = np.random.randint(60)
 
         # target:
+        targBv = thisStair.extraInfo['targBv']
         targSz = thisStair.extraInfo['targSz']
         targYoff = thisStair.extraInfo['targYoff']
 
@@ -456,8 +458,8 @@ while len(stairs)>0:
         targTend = targTon + targTtot
         trialT = thisStair.extraInfo['trialT'] # -win.monitorFramePeriod*0.75
         
-        print 'TRIAL' + '\t' + 'CONTRAST' + '\t\t' + 'mcBv'
-        print trialNstr + '\t' + contrStr + '\t' + str(mcBv)
+        print 'TRIAL' + '\t' + 'CONTRAST' + '\t\t' + 'mcBv' + '\t' + 'targBv'
+        print trialNstr + '\t' + contrStr + '\t' + str(mcBv) + '\t' + str(targBv)
 
         # view setup: fade, gap, and fixation cross
         fixCross = thisStair.extraInfo['fixCross']
@@ -473,11 +475,17 @@ while len(stairs)>0:
             
         # initiating the mc gratings:
         mcV = 0
-        grtStat = np.load(precompiledDir + os.sep + 'mc_' + str(mcV) +
+#        grtStat = np.load(precompiledDir + os.sep + 'mc_' + str(mcV) +
+#                '_sf' + str(mcSf) + '_bsf' + str(mcBsf) + '_bv' + str(mcBv) +
+#                '_sz' + str(mcSz) + '.npy')
+#        grtFast = np.load(precompiledDir + os.sep + 'mc_' + str(mcV) +
+#                '_sf' + str(mcSf) + '_bsf' + str(mcBsf) + '_bv' + str(9.6) +
+#                '_sz' + str(mcSz) + '.npy')
+        grtMask = np.load(precompiledDir + os.sep + 'mc_' + str(mcV) +
                 '_sf' + str(mcSf) + '_bsf' + str(mcBsf) + '_bv' + str(mcBv) +
                 '_sz' + str(mcSz) + '.npy')
-        grtFast = np.load(precompiledDir + os.sep + 'mc_' + str(mcV) +
-                '_sf' + str(mcSf) + '_bsf' + str(mcBsf) + '_bv' + str(9.6) +
+        grtTarg = np.load(precompiledDir + os.sep + 'mc_' + str(mcV) +
+                '_sf' + str(mcSf) + '_bsf' + str(mcBsf) + '_bv' + str(targBv) +
                 '_sz' + str(mcSz) + '.npy')
 
         # creating a mask, which is fixed for a given trial:
@@ -548,20 +556,26 @@ while len(stairs)>0:
             # mcMask and targ presentation:
             if t < trialT:
                 # mcMask:
-                if mcBv > 0.01:
-                    mcMask = visual.GratingStim(win, tex=grtFast[:,:,frameN%nFrames],
-                                                size=(fieldSz,fieldSz), pos=maskPos,
-                                                interpolate=False, mask=mcPeriMask)
-                    mcTarg = visual.GratingStim(win, tex=grtStat[:,:,thisMaskFrame],
-                                                size=(fieldSz,fieldSz), pos=targPos,
-                                                interpolate=False, mask=mcPeriTarg)
-                else:
-                    mcMask = visual.GratingStim(win, tex=grtStat[:,:,thisMaskFrame],
-                        size=(fieldSz,fieldSz), pos=maskPos, interpolate=False,
-                                                mask=mcPeriMask)
-                    mcTarg = visual.GratingStim(win, tex=grtFast[:,:,frameN%nFrames],
-                                                size=(fieldSz,fieldSz), pos=targPos,
-                                                interpolate=False, mask=mcPeriTarg)
+                mcMask = visual.GratingStim(win, tex=grtMask[:,:,frameN%nFrames],
+                                            size=(fieldSz,fieldSz), pos=maskPos,
+                                            interpolate=False, mask=mcPeriMask)
+                mcTarg = visual.GratingStim(win, tex=grtTarg[:,:,frameN%nFrames],
+                                            size=(fieldSz,fieldSz), pos=targPos,
+                                            interpolate=False, mask=mcPeriTarg)
+#                if mcBv > 0.01:
+#                    mcMask = visual.GratingStim(win, tex=grtFast[:,:,frameN%nFrames],
+#                                                size=(fieldSz,fieldSz), pos=maskPos,
+#                                                interpolate=False, mask=mcPeriMask)
+#                    mcTarg = visual.GratingStim(win, tex=grtStat[:,:,thisMaskFrame],
+#                                                size=(fieldSz,fieldSz), pos=targPos,
+#                                                interpolate=False, mask=mcPeriTarg)
+#                else:
+#                    mcMask = visual.GratingStim(win, tex=grtStat[:,:,thisMaskFrame],
+#                        size=(fieldSz,fieldSz), pos=maskPos, interpolate=False,
+#                                                mask=mcPeriMask)
+#                    mcTarg = visual.GratingStim(win, tex=grtFast[:,:,frameN%nFrames],
+#                                                size=(fieldSz,fieldSz), pos=targPos,
+#                                                interpolate=False, mask=mcPeriTarg)
                 mcMask.draw()
                 # drawing the fixation cross, if any:
                 if fixCross:
