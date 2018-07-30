@@ -87,21 +87,13 @@ posCentR = [winOffX, winOffY]
 # ====================================================================================
 ## Getting user info about the experiment session:
 expInfo = {u'session': u'', u'participant': u'', u'experiment': expName, 
-           u'para': '', u'dom': '', u'mono': ''}
+           u'para': '', u'dom': ''}
 expName = expInfo['experiment']
 # dom 0 = left, 1 = right, '' = unkown (do the domTest)
 dlg = gui.DlgFromDict(dictionary=expInfo, title=expName) # dialogue box
 if dlg.OK == False: core.quit()  # user pressed cancel
 timeNow = datetime.now()
 expInfo['time'] = datetime.now().strftime('%Y-%m-%d_%H%M')
-
-## Mono condition allows presentation of the targets on top of the masks:
-if expInfo['mono'] == '' or expInfo['mono'] == '0':
-    mono = 0
-elif expInfo['mono'] == '1':
-    mono = 1
-else:
-    print('ERROR! Value for ''mono'' is unrecognized!')
 
 ## Deciding on whether to do the dominance test:
 if expInfo['dom'] == '' and expInfo['para']=='':
@@ -273,6 +265,7 @@ def dfStair(thisStair, expName, expPara, targEyeR):
                        'participant': expInfo['participant'],
                        'dom': expInfo['dom'],
                        'session': expInfo['session'],
+                       'mono': expInfo['mono'],
                        'nRevs': thisStair.extraInfo['nRevs'],
                        'mcSz': thisStair.extraInfo['mcSz'],
                        'mcSf': thisStair.extraInfo['mcSf'],
@@ -296,7 +289,7 @@ def dfStair(thisStair, expName, expPara, targEyeR):
     return dT
 
 
-dataCols = ['expName', 'expPara', 'time', 'participant', 'dom', 'session', 'nRevs',
+dataCols = ['expName', 'expPara', 'time', 'participant', 'dom', 'session', 'mono', 'nRevs',
             'mcSz', 'mcSf', 'mcBv', 'mcBsf', 'mcPeriGap', 'mcPeriFade', 'targBv',
             'targSz', 'targXoff1', 'targXoff2', 'targYoff', 'targTtot', 'targTon', 'trialT',
             'fixCross', 'stairLabel', 'stairStart', 'meanRev6']
@@ -460,6 +453,7 @@ while len(stairs)>0:
         targPos = [-winOffX+(2*winOffX*targEyeR), winOffY] + \
                       np.array([thisTargXoff, targYoff])
         # assigning mask eye:
+        mono = thisStair.extraInfo['mono']
         if mono: 
             # With monocular presentation, mask is pres to targ eye
             maskPos = [-winOffX+(2*winOffX*targEyeR), winOffY]
@@ -583,7 +577,8 @@ while len(stairs)>0:
                     fixR.draw()
                 # target presentation:
                 if t > targTon and t < targTend:
-                    mcTarg.opacity = 10**float(thisContr)
+                    mcTarg.opacity = ( ((targTend-t)/targTtot) ) * 10**float( thisContr )
+                    print mcTarg.opacity
                 else:
                     mcTarg.opacity = 0
                 mcTarg.draw()
