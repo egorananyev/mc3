@@ -85,16 +85,25 @@ posCentR = [winOffX, winOffY]
 #print posCentR 
 
 # ====================================================================================
-# Store info about the experiment session
-expInfo = {u'session': u'', u'participant': u'', u'experiment': expName,
-           u'para': '', u'dom': ''}
+## Getting user info about the experiment session:
+expInfo = {u'session': u'', u'participant': u'', u'experiment': expName, 
+           u'para': '', u'dom': '', u'mono': ''}
 expName = expInfo['experiment']
 # dom 0 = left, 1 = right, '' = unkown (do the domTest)
 dlg = gui.DlgFromDict(dictionary=expInfo, title=expName) # dialogue box
 if dlg.OK == False: core.quit()  # user pressed cancel
 timeNow = datetime.now()
 expInfo['time'] = datetime.now().strftime('%Y-%m-%d_%H%M')
-# do the dominance test if the paradigm field is left blank or at 'bc3-':
+
+## Mono condition allows presentation of the targets on top of the masks:
+if expInfo['mono'] == '' or expInfo['mono'] == '0':
+    mono = 0
+elif expInfo['mono'] == '1':
+    mono = 1
+else:
+    print('ERROR! Value for ''mono'' is unrecognized!')
+
+## Deciding on whether to do the dominance test:
 if expInfo['dom'] == '' and expInfo['para']=='':
     domTest = True
     expPara = 'dom'
@@ -104,7 +113,7 @@ else: # if domTest==False, fixed targEye:
     domEyeR = int(float(expInfo['dom']))
     targEyeR = 2-(2**domEyeR)
 
-# Setup the Window
+## Setting up the window
 win = visual.Window(size=dr, fullscr=False, screen=1, allowGUI=False, 
       allowStencil=False, color='grey', blendMode='avg', useFBO=True, units='pix')
 # store frame rate of monitor if we can measure it successfully:
@@ -448,9 +457,14 @@ while len(stairs)>0:
         # dealing with which eye the targ/mask are presented to:
         if domTest: # else is assigned through GUI
             targEyeR = thisStair.extraInfo['targEyeR']
-        maskPos = [winOffX-(2*winOffX*targEyeR), winOffY]
         targPos = [-winOffX+(2*winOffX*targEyeR), winOffY] + \
                       np.array([thisTargXoff, targYoff])
+        # assigning mask eye:
+        if mono: 
+            # With monocular presentation, mask is pres to targ eye
+            maskPos = [-winOffX+(2*winOffX*targEyeR), winOffY]
+        else:
+            maskPos = [winOffX-(2*winOffX*targEyeR), winOffY]
 
         # temporal variables:
         targTtot = thisStair.extraInfo['targTtot']
@@ -562,20 +576,6 @@ while len(stairs)>0:
                 mcTarg = visual.GratingStim(win, tex=grtTarg[:,:,frameN%nFrames],
                                             size=(fieldSz,fieldSz), pos=targPos,
                                             interpolate=False, mask=mcPeriTarg)
-#                if mcBv > 0.01:
-#                    mcMask = visual.GratingStim(win, tex=grtFast[:,:,frameN%nFrames],
-#                                                size=(fieldSz,fieldSz), pos=maskPos,
-#                                                interpolate=False, mask=mcPeriMask)
-#                    mcTarg = visual.GratingStim(win, tex=grtStat[:,:,thisMaskFrame],
-#                                                size=(fieldSz,fieldSz), pos=targPos,
-#                                                interpolate=False, mask=mcPeriTarg)
-#                else:
-#                    mcMask = visual.GratingStim(win, tex=grtStat[:,:,thisMaskFrame],
-#                        size=(fieldSz,fieldSz), pos=maskPos, interpolate=False,
-#                                                mask=mcPeriMask)
-#                    mcTarg = visual.GratingStim(win, tex=grtFast[:,:,frameN%nFrames],
-#                                                size=(fieldSz,fieldSz), pos=targPos,
-#                                                interpolate=False, mask=mcPeriTarg)
                 mcMask.draw()
                 # drawing the fixation cross, if any:
                 if fixCross:
