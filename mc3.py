@@ -229,7 +229,7 @@ for thisCond in condList:
     if domTest: stairLabel += '_targEyeR' + str(thisCond['targEyeR'])
     thisInfo['label'] = stairLabel
     thisStair = data.StairHandler(startVal = thisInfo['startContr'],
-                                  extraInfo = thisInfo, maxVal=0, minVal=-2,
+                                  extraInfo = thisInfo, maxVal=1, minVal=-2,
                                   nReversals = thisInfo['nRevs'],
                                   nUp = 1, nDown = 1, stepType='lin',
                                   stepSizes = contrSteps[0:thisInfo['nRevs']],
@@ -265,7 +265,7 @@ def dfStair(thisStair, expName, expPara, targEyeR):
                        'participant': expInfo['participant'],
                        'dom': expInfo['dom'],
                        'session': expInfo['session'],
-                       'mono': expInfo['mono'],
+                       'mono': thisStair.extraInfo['mono'],
                        'nRevs': thisStair.extraInfo['nRevs'],
                        'mcSz': thisStair.extraInfo['mcSz'],
                        'mcSf': thisStair.extraInfo['mcSf'],
@@ -483,12 +483,6 @@ while len(stairs)>0:
             
         # initiating the mc gratings:
         mcV = 0
-#        grtStat = np.load(precompiledDir + os.sep + 'mc_' + str(mcV) +
-#                '_sf' + str(mcSf) + '_bsf' + str(mcBsf) + '_bv' + str(mcBv) +
-#                '_sz' + str(mcSz) + '.npy')
-#        grtFast = np.load(precompiledDir + os.sep + 'mc_' + str(mcV) +
-#                '_sf' + str(mcSf) + '_bsf' + str(mcBsf) + '_bv' + str(9.6) +
-#                '_sz' + str(mcSz) + '.npy')
         grtMask = np.load(precompiledDir + os.sep + 'mc_' + str(mcV) +
                 '_sf' + str(mcSf) + '_bsf' + str(mcBsf) + '_bv' + str(mcBv) +
                 '_sz' + str(mcSz) + '.npy')
@@ -570,17 +564,26 @@ while len(stairs)>0:
                 mcTarg = visual.GratingStim(win, tex=grtTarg[:,:,frameN%nFrames],
                                             size=(fieldSz,fieldSz), pos=targPos,
                                             interpolate=False, mask=mcPeriTarg)
+                if thisContr > 0:
+                    mcMask.opacity = 1 - thisContr
+                else:
+                    mcMask.opacity = 1
                 mcMask.draw()
                 # drawing the fixation cross, if any:
                 if fixCross:
                     fixL.draw()
                     fixR.draw()
                 # target presentation:
-                if t > targTon and t < targTend:
-                    mcTarg.opacity = ( ((targTend-t)/targTtot) ) * 10**float( thisContr )
-                    print mcTarg.opacity
+                if mcMask.opacity == 1:
+                    if t > targTon and t < targTend:
+                        targOpacity = ( (targTend-t)/targTtot ) * 10**float( thisContr )
+                    else:
+                        targOpacity = 0
                 else:
-                    mcTarg.opacity = 0
+                    targOpacity = (targTend-t)/targTtot
+                if targOpacity < 0:
+                    targOpacity = 0
+                mcTarg.opacity = targOpacity
                 mcTarg.draw()
 
             # *key_arrow* updates for target reponses:
